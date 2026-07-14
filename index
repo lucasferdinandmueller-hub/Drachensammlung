@@ -228,18 +228,8 @@ function getColorKey(bg) {
 // ── BILD-URL aus Scryfall-Link ─────────────────────────────
 // link z.B.: https://scryfall.com/card/fin/16/bahamut?utm_source=api
 // → https://api.scryfall.com/cards/fin/16?format=image&version=normal
-function scryfallImageUrl(link) {
-  if (!link) return "";
-  try {
-    // URL parsen: /card/SET/NUMBER/name
-    const match = link.match(/scryfall\.com\/card\/([^\/]+)\/([^\/\?]+)/);
-    if (!match) return "";
-    const set = match[1];
-    const num = match[2];
-    return `https://api.scryfall.com/cards/${set}/${num}?format=image&version=normal`;
-  } catch (e) {
-    return "";
-  }
+function scryfallImageUrl(d) {
+  return d.imageUrl || "";
 }
 
 // ── DATEN LADEN ───────────────────────────────────────────
@@ -297,7 +287,7 @@ function renderGallery() {
     const d      = filtered[idx];
     const color  = getColorKey(d.colorBg);
     const stripe = (COLOR_MAP[color] || COLOR_MAP.C).stripe;
-    const imgUrl = scryfallImageUrl(d.link);
+    const imgUrl = scryfallImageUrl(d);
 
     const el = document.createElement("div");
     el.className = `card${d.owned ? "" : " not-owned"}`;
@@ -357,7 +347,7 @@ function renderGallery() {
 // ── MODAL ─────────────────────────────────────────────────
 function openModal(d) {
   const color  = getColorKey(d.colorBg);
-  const imgUrl = scryfallImageUrl(d.link);
+  const imgUrl = scryfallImageUrl(d);
 
   document.getElementById("modal-name").textContent = d.name;
   const img = document.getElementById("modal-img");
