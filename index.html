@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🐉 Dragon Collection</title>
+  <style>
+    /* ── TOKENS ──────────────────────────────────────────── */
+    :root {
+      --bg:         #0e0e14;
+      --surface:    #1a1a2e;
+      --surface2:   #16213e;
+      --gold:       #e0c97f;
+      --gold-dim:   #a08840;
+      --text:       #e8e0d0;
+      --text-dim:   #888070;
+      --red:        #c0392b;
+      --radius:     12px;
+      --card-w:     200px;
+      --transition: 0.2s ease;
+    }
+
+    /* ── RESET ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ──────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--gold-dim);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 {
+      font-size: 1.6rem;
+      color: var(--gold);
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+    .stats {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+    .stats span { color: var(--gold); font-weight: 600; }
+
+    /* ── FILTER BAR ──────────────────────────────────────── */
+    .filters {
+      background: var(--surface2);
+      padding: 14px 32px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      border-bottom: 1px solid #ffffff10;
+    }
+    .filter-label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Farbfilter-Buttons */
+    .color-filters { display: flex; gap: 6px; }
+    .color-btn {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 700;
+      transition: var(--transition);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .color-btn:hover  { transform: scale(1.15); }
+    .color-btn.active { border-color: var(--gold); transform: scale(1.1); }
+    .color-btn[data-color="W"] { background: #fffff0; color: #888; }
+    .color-btn[data-color="U"] { background: #1a6fa0; color: #fff; }
+    .color-btn[data-color="B"] { background: #2a1a3e; color: #c0a0ff; border-color: #4a3a5e; }
+    .color-btn[data-color="R"] { background: #a02010; color: #fff; }
+    .color-btn[data-color="G"] { background: #1a6030; color: #fff; }
+    .color-btn[data-color="M"] { background: linear-gradient(135deg, #c8a020, #a02010); color: #fff; }
+    .color-btn[data-color="C"] { background: #606060; color: #fff; }
+    .color-btn[data-color="ALL"] { background: var(--gold); color: var(--bg); width: auto; padding: 0 10px; border-radius: 16px; font-size: 0.75rem; }
+
+    /* Besitz-Filter */
+    .owned-filter {
+      display: flex; gap: 6px;
+    }
+    .owned-btn {
+      padding: 4px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--gold-dim);
+      background: transparent;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .owned-btn.active, .owned-btn:hover {
+      background: var(--gold);
+      color: var(--bg);
+      border-color: var(--gold);
+    }
+
+    /* Suche */
+    .search-box {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--gold-dim);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.85rem;
+      outline: none;
+      width: 200px;
+    }
+    .search-box:focus { border-color: var(--gold); }
+
+    /* ── GALLERY ─────────────────────────────────────────── */
+    .gallery {
+      padding: 28px 32px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-content: flex-start;
+    }
+
+    /* ── CARD ────────────────────────────────────────────── */
+    .card {
+      width: var(--card-w);
+      cursor: grab;
+      position: relative;
+      transition: transform var(--transition), box-shadow var(--transition);
+      border-radius: var(--radius);
+      user-select: none;
+    }
+    .card:hover { transform: translateY(-6px) scale(1.03); z-index: 10; }
+    .card.dragging { opacity: 0.4; cursor: grabbing; }
+    .card.drag-over { outline: 2px dashed var(--gold); outline-offset: 4px; }
+
+    /* Kartenrahmen */
+    .card-inner {
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: 0 4px 20px #00000060;
+      position: relative;
+    }
+
+    /* Kartenbild */
+    .card-img-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 63/88;
+      background: var(--surface2);
+    }
+    .card-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: filter var(--transition);
+    }
+    .card.not-owned .card-img {
+      filter: grayscale(80%) brightness(0.5);
+    }
+
+    /* Foil-Sternchen */
+    .foil-badge {
+      position: absolute;
+      top: 6px; right: 6px;
+      background: linear-gradient(135deg, #ffd700, #ff8c00, #ffd700);
+      color: #000;
+      font-size: 0.65rem;
+      font-weight: 900;
+      padding: 2px 6px;
+      border-radius: 8px;
+      box-shadow: 0 0 8px #ffd70080;
+      letter-spacing: 0.05em;
+    }
+
+    /* Nicht-im-Besitz Overlay */
+    .not-owned-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    /* Card Info */
+    .card-info {
+      padding: 8px 10px;
+      background: var(--surface);
+    }
+    .card-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-edition {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Farbstreifen unten */
+    .color-stripe {
+      height: 3px;
+      width: 100%;
+    }
+
+    /* ── MODAL ───────────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #00000090;
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--gold-dim);
+      border-radius: 16px;
+      max-width: 520px;
+      width: 90%;
+      overflow: hidden;
+      box-shadow: 0 20px 60px #000000a0;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-header {
+      background: var(--surface2);
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #ffffff10;
+    }
+    .modal-title {
+      font-size: 1.1rem;
+      color: var(--gold);
+      font-weight: 700;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 1.4rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-body {
+      display: flex;
+      gap: 20px;
+      padding: 20px;
+    }
+    .modal-img {
+      width: 160px;
+      flex-shrink: 0;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px #00000060;
+    }
+    .modal-img img {
+      width: 100%;
+      display: block;
+    }
+    .modal-details {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .detail-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .detail-label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .detail-value {
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+    .detail-value.gold { color: var(--gold); font-weight: 600; }
+    .scryfall-link {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 6px 16px;
+      background: var(--gold);
+      color: var(--bg);
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: var(--transition);
+    }
+    .scryfall-link:hover { background: #c8a040; }
+
+    /* ── EMPTY STATE ─────────────────────────────────────── */
+    .empty {
+      width: 100%;
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-dim);
+    }
+    .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+
+    /* ── LOADING ─────────────────────────────────────────── */
+    .loading {
+      width: 100%;
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--gold);
+      font-size: 1.1rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🐉 Dragon Collection</h1>
+  <div class="stats" id="stats">Lade…</div>
+</header>
+
+<div class="filters">
+  <span class="filter-label">Farbe</span>
+  <div class="color-filters">
+    <button class="color-btn active" data-color="ALL">Alle</button>
+    <button class="color-btn" data-color="W" title="Weiß">W</button>
+    <button class="color-btn" data-color="U" title="Blau">U</button>
+    <button class="color-btn" data-color="B" title="Schwarz">B</button>
+    <button class="color-btn" data-color="R" title="Rot">R</button>
+    <button class="color-btn" data-color="G" title="Grün">G</button>
+    <button class="color-btn" data-color="M" title="Mehrfarbig">M</button>
+    <button class="color-btn" data-color="C" title="Farblos">C</button>
+  </div>
+
+  <span class="filter-label" style="margin-left:12px">Besitz</span>
+  <div class="owned-filter">
+    <button class="owned-btn active" data-owned="all">Alle</button>
+    <button class="owned-btn" data-owned="owned">Im Besitz</button>
+    <button class="owned-btn" data-owned="missing">Fehlend</button>
+  </div>
+
+  <input type="text" class="search-box" placeholder="🔍 Name suchen…" id="searchInput">
+</div>
+
+<div class="gallery" id="gallery">
+  <div class="loading">🐉 Lade Drachen…</div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-name">–</span>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-img">
+        <img id="modal-img" src="" alt="">
+      </div>
+      <div class="modal-details" id="modal-details"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────
+let allDragons   = [];
+let filtered     = [];
+let activeColor  = "ALL";
+let activeOwned  = "all";
+let searchTerm   = "";
+let dragSrcIndex = null;
+let order        = []; // custom drag-order (indices into filtered)
+
+// Farb-Mapping
+const COLOR_MAP = {
+  W: { label: "Weiß",       stripe: "#f0f0c0" },
+  U: { label: "Blau",       stripe: "#1a6fa0" },
+  B: { label: "Schwarz",    stripe: "#4a3a5e" },
+  R: { label: "Rot",        stripe: "#a02010" },
+  G: { label: "Grün",       stripe: "#1a6030" },
+  M: { label: "Mehrfarbig", stripe: "#c8a020" },
+  C: { label: "Farblos",    stripe: "#808080" },
+};
+
+function getColorKey(bg) {
+  const map = {
+    "#fffff0": "W", "#e8f4fd": "U", "#f5e6ff": "B",
+    "#fff0e8": "R", "#e8f5e8": "G", "#fff8e0": "M", "#f0f0f0": "C",
+  };
+  return map[bg] || "C";
+}
+
+// ── DATEN LADEN ───────────────────────────────────────────
+async function loadData() {
+  try {
+    const resp = await fetch("dragons.json");
+    if (!resp.ok) throw new Error("dragons.json nicht gefunden");
+    const json = await resp.json();
+    allDragons = json.dragons || [];
+    applyFilters();
+  } catch (e) {
+    document.getElementById("gallery").innerHTML =
+      `<div class="empty"><div class="empty-icon">⚠️</div>
+       <p>Konnte dragons.json nicht laden.</p>
+       <p style="font-size:0.85rem;margin-top:8px;color:#aaa">
+         Stelle sicher dass dragons.json neben index.html liegt.</p></div>`;
+  }
+}
+
+// ── FILTER ────────────────────────────────────────────────
+function applyFilters() {
+  filtered = allDragons.filter(d => {
+    const color = getColorKey(d.colorBg);
+    if (activeColor !== "ALL" && color !== activeColor) return false;
+    if (activeOwned === "owned"   && !d.owned)  return false;
+    if (activeOwned === "missing" &&  d.owned)  return false;
+    if (searchTerm && !d.name.toLowerCase().includes(searchTerm)) return false;
+    return true;
+  });
+  order = filtered.map((_, i) => i);
+  renderGallery();
+  updateStats();
+}
+
+// ── STATS ─────────────────────────────────────────────────
+function updateStats() {
+  const total  = allDragons.length;
+  const owned  = allDragons.filter(d => d.owned).length;
+  const foil   = allDragons.filter(d => d.foil).length;
+  document.getElementById("stats").innerHTML =
+    `<span>${owned}</span> / ${total} im Besitz &nbsp;·&nbsp; <span>${foil}</span> Foil`;
+}
+
+// ── SCRYFALL BILD ─────────────────────────────────────────
+function scryfallImageUrl(artId, size = "normal") {
+  // Wir nutzen die Scryfall API um das Bild per illustration_id zu laden
+  return `https://api.scryfall.com/cards/search?q=illustration_id%3A${artId}&format=image&version=${size}`;
+}
+
+function scryfallImageByArtId(artId) {
+  // Direkte Bild-URL via Scryfall illustration search
+  return `https://cards.scryfall.io/normal/front/${artId.charAt(0)}/${artId.charAt(1)}/${artId}.jpg`;
+}
+
+// ── GALLERY RENDERN ───────────────────────────────────────
+function renderGallery() {
+  const gallery = document.getElementById("gallery");
+
+  if (!filtered.length) {
+    gallery.innerHTML = `<div class="empty"><div class="empty-icon">🐉</div><p>Keine Drachen gefunden.</p></div>`;
+    return;
+  }
+
+  gallery.innerHTML = "";
+
+  order.forEach((idx, pos) => {
+    const d     = filtered[idx];
+    const color = getColorKey(d.colorBg);
+    const stripe = (COLOR_MAP[color] || COLOR_MAP.C).stripe;
+
+    // Bild-URL: wir versuchen es über die artId
+    const imgUrl = d.artId && !d.artId.includes("_noart") && !d.artId.includes("_front") && !d.artId.includes("_back")
+      ? `https://cards.scryfall.io/normal/front/${d.artId.charAt(0)}/${d.artId.charAt(1)}/${d.artId}.jpg`
+      : "";
+
+    const el = document.createElement("div");
+    el.className = `card${d.owned ? "" : " not-owned"}`;
+    el.dataset.pos = pos;
+    el.draggable = true;
+
+    el.innerHTML = `
+      <div class="card-inner">
+        <div class="card-img-wrap">
+          ${imgUrl
+            ? `<img class="card-img" src="${imgUrl}" alt="${d.name}"
+                 onerror="this.style.display='none';this.parentNode.querySelector('.img-fallback').style.display='flex'">`
+            : ""}
+          <div class="img-fallback" style="display:${imgUrl ? "none" : "flex"};
+               position:absolute;inset:0;align-items:center;justify-content:center;
+               font-size:3rem;background:var(--surface2)">🐉</div>
+          ${d.foil ? '<div class="foil-badge">★ FOIL</div>' : ""}
+          ${!d.owned ? '<div class="not-owned-overlay">✕</div>' : ""}
+        </div>
+        <div class="card-info">
+          <div class="card-name" title="${d.name}">${d.name}</div>
+          <div class="card-edition" title="${d.edition}">${d.edition}</div>
+        </div>
+        <div class="color-stripe" style="background:${stripe}"></div>
+      </div>
+    `;
+
+    // Klick → Modal
+    el.addEventListener("click", () => openModal(d));
+
+    // Drag & Drop
+    el.addEventListener("dragstart", e => {
+      dragSrcIndex = pos;
+      el.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+    });
+    el.addEventListener("dragend", () => {
+      el.classList.remove("dragging");
+      document.querySelectorAll(".card").forEach(c => c.classList.remove("drag-over"));
+    });
+    el.addEventListener("dragover", e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      document.querySelectorAll(".card").forEach(c => c.classList.remove("drag-over"));
+      el.classList.add("drag-over");
+    });
+    el.addEventListener("drop", e => {
+      e.preventDefault();
+      if (dragSrcIndex === null || dragSrcIndex === pos) return;
+      // Tausche Positionen im order-Array
+      const tmp = order[dragSrcIndex];
+      order[dragSrcIndex] = order[pos];
+      order[pos] = tmp;
+      dragSrcIndex = null;
+      renderGallery();
+    });
+
+    gallery.appendChild(el);
+  });
+}
+
+// ── MODAL ─────────────────────────────────────────────────
+function openModal(d) {
+  const color  = getColorKey(d.colorBg);
+  const imgUrl = d.artId && !d.artId.includes("_noart") && !d.artId.includes("_front") && !d.artId.includes("_back")
+    ? `https://cards.scryfall.io/normal/front/${d.artId.charAt(0)}/${d.artId.charAt(1)}/${d.artId}.jpg`
+    : "";
+
+  document.getElementById("modal-name").textContent = d.name;
+
+  const img = document.getElementById("modal-img");
+  img.src = imgUrl;
+  img.alt = d.name;
+
+  const details = document.getElementById("modal-details");
+  details.innerHTML = `
+    <div class="detail-row">
+      <span class="detail-label">Edition</span>
+      <span class="detail-value">${d.edition || "–"}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Farbe</span>
+      <span class="detail-value">${(COLOR_MAP[color] || COLOR_MAP.C).label}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Im Besitz</span>
+      <span class="detail-value gold">${d.owned ? "✅ Ja" : "❌ Nein"}</span>
+    </div>
+    ${d.owned ? `
+    <div class="detail-row">
+      <span class="detail-label">Foil</span>
+      <span class="detail-value">${d.foil ? "★ Ja" : "Nein"}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Zustand</span>
+      <span class="detail-value">${d.condition || "–"}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Sprache</span>
+      <span class="detail-value">${d.language || "–"}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Preis</span>
+      <span class="detail-value">${d.price ? d.price + " €" : "–"}</span>
+    </div>
+    ` : ""}
+    ${d.notes ? `
+    <div class="detail-row">
+      <span class="detail-label">Anmerkungen</span>
+      <span class="detail-value">${d.notes}</span>
+    </div>
+    ` : ""}
+    ${d.link ? `<a href="${d.link}" target="_blank" class="scryfall-link">🔗 Scryfall öffnen</a>` : ""}
+  `;
+
+  document.getElementById("modal").classList.add("open");
+}
+
+function closeModal() {
+  document.getElementById("modal").classList.remove("open");
+}
+
+// ── EVENT LISTENERS ───────────────────────────────────────
+document.querySelectorAll(".color-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".color-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    activeColor = btn.dataset.color;
+    applyFilters();
+  });
+});
+
+document.querySelectorAll(".owned-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".owned-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    activeOwned = btn.dataset.owned;
+    applyFilters();
+  });
+});
+
+document.getElementById("searchInput").addEventListener("input", e => {
+  searchTerm = e.target.value.toLowerCase().trim();
+  applyFilters();
+});
+
+document.getElementById("modal-close").addEventListener("click", closeModal);
+document.getElementById("modal").addEventListener("click", e => {
+  if (e.target === document.getElementById("modal")) closeModal();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeModal();
+});
+
+// ── START ─────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
